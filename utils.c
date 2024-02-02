@@ -2,7 +2,7 @@
 
 // cherche un charactere de nouvelle ligne dans la liste chainee
 
-int found_new_line(t_list *stash)
+int find_new_line(t_list *stash)
 {
 	int 	i;
 	t_list *current; 
