@@ -6,99 +6,97 @@
 /*   By: qbarron <qbarron@student.42perpignan.fr    +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2023/12/31 18:39:07 by qbarron           #+#    #+#             */
-/*   Updated: 2023/12/31 18:39:07 by qbarron          ###   ########.fr       */
+/*   Updated: 2024/02/08 10:19:17 by qbarron          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
 #include "get_next_line.h"
-#include "utils.c"
 
-char *get_next_line(int fd)
+char	*get_next_line(int fd)
 {
 	static t_list	*stash;
 	char			*line;
-	int				readed;
 
-	if (fd < 0 || BUFFER_SIZE < 0 || read(fd, &line, 0) < 0)
-		return(NULL);
-	readed = 1;
+	if (fd < 0 || BUFFER_SIZE < 0 || read(fd, &line, 0) < 0
+		|| BUFFER_SIZE > INT_MAX)
+	{
+		write(1, "-1", 2);
+		return (NULL);
+	}
 	line = NULL;
-	// 1. lire le fichier et ajouter a la liste chainee les characteres
-	read_and_stash(fd, &stash, &readed);
+	read_and_stash(fd, &stash);
 	if (stash == NULL)
 		return (NULL);
-	// 2. extraire la stash dans la variable line
 	extract_line(stash, &line);
-	// 3. nettoyer la stash pour le prochain appel de gnl
 	clean_stash(&stash);
-	//condition pour identifer quand on a deja finit de lire un fichier
 	if (line[0] == '\0')
 	{
 		free_stash(stash);
 		stash = NULL;
 		free(line);
-		return (NULL);	
+		return (NULL);
 	}
+	return (line);
 }
 
-void read_and_stash(int fd, t_list **stash, int *readed_ptr)
+void	read_and_stash(int fd, t_list **stash)
 {
 	char	*buf;
+	int		readed;
 
-	while (!find_new_line(&stash) && *readed_ptr != 0)  				//si egale a zero il n'y a rien a lire
+	readed = 1;
+	while (!found_new_line(*stash) && readed != 0)
 	{
-		buf = malloc(sizeof(char) + BUFFER_SIZE + 1);					//on malloc le buffer pour prendre la taille souhaiter du BUFFER
+		buf = malloc(sizeof(char) * BUFFER_SIZE + 1);
 		if (buf == NULL)
-			return;
-		readed_ptr = (int)read (fd, buf, BUFFER_SIZE);					//on dit au pointeur de copier le fichier a longeur du BS
-		if ((*stash == NULL && *readed_ptr == 0) || *readed_ptr == -1)
+			return ;
+		readed = (int)read(fd, buf, BUFFER_SIZE);
+		if ((*stash == NULL && readed == 0) || readed == -1)
 		{
 			free(buf);
-			return;
+			return ;
 		}
-		buf[*readed_ptr] = '\0'; 										//ferme la chaine de charactere par \0 apres le buffer size
-		add_to_stash(stash, buf, *read_ptr);
-		free (buf);														//on free dans la boucle pour que le buf soit free a chaque fois qu'il y a un nouveau read
+		buf[readed] = '\0';
+		add_to_stash(stash, buf, readed);
+		free(buf);
 	}
 }
 
-void add_to_stash(t_list **stash, char *buf, int readed)
+void	add_to_stash(t_list **stash, char *buf, int readed)
 {
-	int	i;
-	t_list	*last;												//le dernier node de la stash
-	t_list	*new_node;											//pour ajouter a la fin de la liste, on doit ajouter un new node
+	int		i;
+	t_list	*last;
+	t_list	*new_node;
 
 	new_node = malloc(sizeof(t_list));
 	if (new_node == NULL)
 		return ;
-	new_node->next = NULL;										//il n'y a pas de prochain maillon de chaine grace au NULL
-	new_node->content = malloc(sizeof(char) * (readed + 1)); 	//on alloue de la memoire au contenue du dernier maillon = la stash
+	new_node->next = NULL;
+	new_node->content = malloc(sizeof(char) * (readed + 1));
 	if (new_node->content == NULL)
 		return ;
 	i = -1;
-	while (buf[++i] && i < readed)								//tant qu'il y a quelque chose dans le buf et qu'il y a toujours quelque chose a lire dans readed
-		new_node->content[i] = buf[i];  						//on met le contenue du buffer dans le content de la new node.
-	new_node->content[i] = '\0';								//on ferme la node par un charactere de fin de ligne
-	if (*stash == NULL)											//s'il n'y a rien dans la stash
+	while (buf[++i] && i < readed)
+		new_node->content[i] = buf[i];
+	new_node->content[i] = '\0';
+	if (*stash == NULL)
 	{
-		*stash = new_node;										//on met dans la stash le contenue de new_node (cf le contenue du buf)
+		*stash = new_node;
 		return ;
 	}
-	last = ft_lst_get_last(stash);								//sinon, on remplit le dernier element de la stash dans le dernier content de la stash.
-	last->next = new_node;										//le node suivant last est remplit par new_node
+	last = ft_lst_get_last(*stash);
+	last->next = new_node;
 }
 
-//extrait tous les characteres de la stash et les stocks das la out line,
-//s'arretant apres le premier \n qu'il rencontre
-void extract_line(t_list *stash, char **line)
+void	extract_line(t_list *stash, char **line)
 {
 	int	i;
 	int	j;
 
 	if (stash == NULL)
 		return ;
-	generate_line(line, stash);					//attribue de la memoire
-	if (*line == NULL)							//on place le checker de memoire ici au lieu de dans generate_line car la modification de la line se fait dans cette fonction ci. Dans generate_line, //on ne fait qu'allouer de la memoire, on ne travaille pas directement sur son content
+	generate_line(line, stash);
+	if (*line == NULL)
 		return ;
 	j = 0;
 	while (stash)
@@ -108,8 +106,8 @@ void extract_line(t_list *stash, char **line)
 		{
 			if (stash->content[i] == '\n')
 			{
-				(*line)[j++] == stash->content[i];
-				break;
+				(*line)[j++] = stash->content[i];
+				break ;
 			}
 			(*line)[j++] = stash->content[i++];
 		}
@@ -118,29 +116,31 @@ void extract_line(t_list *stash, char **line)
 	(*line)[j] = '\0';
 }
 
-//calcule le nombre de char dans la ligne actuelle
-// inclu \n s'il y en a un, et alloue la memoire en fonction
-
-void generate_line(char **line, t_list *stash)
+void	clean_stash(t_list **stash)
 {
-	int	i;
-	int	len;
+	t_list	*last;
+	t_list	*clean_node;
+	int		i;
+	int		j;
 
-	len = 0;
-	while (stash)
-	{
-		i = 0;
-		while (stash->content[i])
-		{
-			if (stash->content == '\n') //si le character actuel est un \n
-			{
-				len++;					//augmente la taille de la ligne
-				break;					//et sort de la boucle
-			}
-			len++;						//sinon compte le charactere dans la taille
-			i++;						//et incremente la boucle
-		}
-		stash = stash->next;			//on incremente la liste
-	}
-	*line = malloc(sizeof(char) * (len + 1));
+	clean_node = malloc(sizeof(t_list));
+	if (stash == NULL || clean_node == NULL)
+		return ;
+	clean_node->next = NULL;
+	last = ft_lst_get_last(*stash);
+	i = 0;
+	while (last->content[i] && last->content[i] != '\n')
+		i++;
+	if (last->content[i] && last->content[i] == '\n')
+		i++;
+	clean_node->content = malloc(sizeof(char) + (ft_strlen(last->content) - i)
+			+ 1);
+	if (clean_node->content == NULL)
+		return ;
+	j = 0;
+	while (last->content[i])
+		clean_node->content[j++] = last->content[i++];
+	clean_node->content[j] = '\0';
+	free_stash(*stash);
+	*stash = clean_node;
 }
