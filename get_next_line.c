@@ -6,7 +6,7 @@
 /*   By: qbarron <qbarron@student.42perpignan.fr    +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2023/12/31 18:39:07 by qbarron           #+#    #+#             */
-/*   Updated: 2024/02/08 10:19:17 by qbarron          ###   ########.fr       */
+/*   Updated: 2024/02/08 18:41:37 by qbarron          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -17,12 +17,8 @@ char	*get_next_line(int fd)
 	static t_list	*stash;
 	char			*line;
 
-	if (fd < 0 || BUFFER_SIZE < 0 || read(fd, &line, 0) < 0
-		|| BUFFER_SIZE > INT_MAX)
-	{
-		write(1, "-1", 2);
-		return (NULL);
-	}
+	if (fd < 0 || BUFFER_SIZE < 0 || read(fd, 0, 0) < 0)
+		return (free(stash), stash = NULL, NULL);
 	line = NULL;
 	read_and_stash(fd, &stash);
 	if (stash == NULL)
@@ -75,9 +71,12 @@ void	add_to_stash(t_list **stash, char *buf, int readed)
 	new_node->content = malloc(sizeof(char) * (readed + 1));
 	if (new_node->content == NULL)
 		return ;
-	i = -1;
-	while (buf[++i] && i < readed)
+	i = 0;
+	while (buf[i] && i < readed)
+	{
 		new_node->content[i] = buf[i];
+		i++;
+	}
 	new_node->content[i] = '\0';
 	if (*stash == NULL)
 	{
@@ -133,8 +132,8 @@ void	clean_stash(t_list **stash)
 		i++;
 	if (last->content[i] && last->content[i] == '\n')
 		i++;
-	clean_node->content = malloc(sizeof(char) + (ft_strlen(last->content) - i)
-			+ 1);
+	clean_node->content = malloc(sizeof(char) 
+					* (ft_strlen(last->content) - i) + 1);
 	if (clean_node->content == NULL)
 		return ;
 	j = 0;
